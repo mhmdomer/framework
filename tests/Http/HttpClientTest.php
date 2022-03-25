@@ -50,6 +50,28 @@ class HttpClientTest extends TestCase
         $this->assertTrue($response->ok());
     }
 
+    public function testUnauthorizedRequest()
+    {
+        $this->factory->fake([
+            'laravel.com' => $this->factory::response('', 401),
+        ]);
+
+        $response = $this->factory->post('http://laravel.com');
+
+        $this->assertTrue($response->unauthorized());
+    }
+
+    public function testForbiddenRequest()
+    {
+        $this->factory->fake([
+            'laravel.com' => $this->factory::response('', 403),
+        ]);
+
+        $response = $this->factory->post('http://laravel.com');
+
+        $this->assertTrue($response->forbidden());
+    }
+
     public function testResponseBodyCasting()
     {
         $this->factory->fake([
@@ -156,6 +178,23 @@ class HttpClientTest extends TestCase
                    $request->hasHeader('Content-Type', 'application/x-www-form-urlencoded') &&
                    $request['name'] === 'Taylor';
         });
+    }
+
+    public function testRecordedCallsAreEmptiedWhenFakeIsCalled()
+    {
+        $this->factory->fake([
+            'http://foo.com/*' => ['page' => 'foo'],
+        ]);
+
+        $this->factory->get('http://foo.com/test');
+
+        $this->factory->assertSent(function (Request $request) {
+            return $request->url() === 'http://foo.com/test';
+        });
+
+        $this->factory->fake();
+
+        $this->factory->assertNothingSent();
     }
 
     public function testSpecificRequestIsNotBeingSent()
@@ -900,6 +939,19 @@ class HttpClientTest extends TestCase
         $request->setClient($client);
 
         $this->assertSame($client, $request->buildClient());
+    }
+
+    public function testRequestsCanReplaceOptions()
+    {
+        $request = new PendingRequest($this->factory);
+
+        $request = $request->withOptions(['http_errors' => true, 'connect_timeout' => 10]);
+
+        $this->assertSame(['http_errors' => true, 'connect_timeout' => 10], $request->getOptions());
+
+        $request = $request->withOptions(['connect_timeout' => 20]);
+
+        $this->assertSame(['http_errors' => true, 'connect_timeout' => 20], $request->getOptions());
     }
 
     public function testMultipleRequestsAreSentInThePool()

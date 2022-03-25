@@ -1831,6 +1831,17 @@ class SupportCollectionTest extends TestCase
     /**
      * @dataProvider collectionClassProvider
      */
+    public function testSortByCallableString($collection)
+    {
+        $data = new $collection([['sort' => 2], ['sort' => 1]]);
+        $data = $data->sortBy([['sort', 'asc']]);
+
+        $this->assertEquals([['sort' => 1], ['sort' => 2]], array_values($data->all()));
+    }
+
+    /**
+     * @dataProvider collectionClassProvider
+     */
     public function testSortByAlwaysReturnsAssoc($collection)
     {
         $data = new $collection(['a' => 'taylor', 'b' => 'dayle']);
@@ -1866,6 +1877,16 @@ class SupportCollectionTest extends TestCase
         $data = new $collection(['a' => 'taylor', 'b' => 'dayle']);
 
         $this->assertSame(['b' => 'dayle', 'a' => 'taylor'], $data->sortKeysDesc()->all());
+    }
+
+    /**
+     * @dataProvider collectionClassProvider
+     */
+    public function testSortKeysUsing($collection)
+    {
+        $data = new $collection(['B' => 'dayle', 'a' => 'taylor']);
+
+        $this->assertSame(['a' => 'taylor', 'B' => 'dayle'], $data->sortKeysUsing('strnatcasecmp')->all());
     }
 
     /**
@@ -2125,6 +2146,37 @@ class SupportCollectionTest extends TestCase
         $data = new $collection(['taylor', 'dayle', 'shawn']);
         $data = $data->take(2);
         $this->assertEquals(['taylor', 'dayle'], $data->all());
+    }
+
+    public function testGetOrPut()
+    {
+        $data = new Collection(['name' => 'taylor', 'email' => 'foo']);
+
+        $this->assertEquals('taylor', $data->getOrPut('name', null));
+        $this->assertEquals('foo', $data->getOrPut('email', null));
+        $this->assertEquals('male', $data->getOrPut('gender', 'male'));
+
+        $this->assertEquals('taylor', $data->get('name'));
+        $this->assertEquals('foo', $data->get('email'));
+        $this->assertEquals('male', $data->get('gender'));
+
+        $data = new Collection(['name' => 'taylor', 'email' => 'foo']);
+
+        $this->assertEquals('taylor', $data->getOrPut('name', function () {
+            return null;
+        }));
+
+        $this->assertEquals('foo', $data->getOrPut('email', function () {
+            return null;
+        }));
+
+        $this->assertEquals('male', $data->getOrPut('gender', function () {
+            return 'male';
+        }));
+
+        $this->assertEquals('taylor', $data->get('name'));
+        $this->assertEquals('foo', $data->get('email'));
+        $this->assertEquals('male', $data->get('gender'));
     }
 
     public function testPut()
@@ -2904,6 +2956,8 @@ class SupportCollectionTest extends TestCase
         $this->assertEquals(['b', 'f'], $data->nth(4, 1)->all());
         $this->assertEquals(['c'], $data->nth(4, 2)->all());
         $this->assertEquals(['d'], $data->nth(4, 3)->all());
+        $this->assertEquals(['c', 'e'], $data->nth(2, 2)->all());
+        $this->assertEquals(['c', 'd', 'e', 'f'], $data->nth(1, 2)->all());
     }
 
     /**
@@ -3994,6 +4048,25 @@ class SupportCollectionTest extends TestCase
         $instance = $data->pipeInto(TestCollectionMapIntoObject::class);
 
         $this->assertSame($data, $instance->value);
+    }
+
+    /**
+     * @dataProvider collectionClassProvider
+     */
+    public function testPipeThrough($collection)
+    {
+        $data = new $collection([1, 2, 3]);
+
+        $result = $data->pipeThrough([
+            function ($data) {
+                return $data->merge([4, 5]);
+            },
+            function ($data) {
+                return $data->sum();
+            },
+        ]);
+
+        $this->assertEquals(15, $result);
     }
 
     /**
